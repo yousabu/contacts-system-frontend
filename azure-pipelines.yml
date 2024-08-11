@@ -1,0 +1,94 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool: yarb
+
+resources:
+  repositories:
+    - repository: helmchart-repo  # Alias for the repository
+      type: github
+      name: yousabu/contacts-system-helmchart  # The full name of your repository in GitHub 
+      endpoint: github-contact-system
+
+steps:
+  # Check Helm installation
+  - task: HelmInstaller@0
+    displayName: Check Helm Installation
+    inputs:
+      helmVersion: '3.15.3'
+      # installKubectl: true
+
+  # Pull repos and set tags
+  - checkout: self
+  - script: |
+      echo "##vso[task.setvariable variable=imageTag]$(Build.BuildId)"
+      echo "##vso[task.setvariable variable=latestTag]latest"
+      ls -la
+    displayName: 'Set Image Tags'
+
+  - task: Docker@2
+    displayName: 'Build and Push Docker Image with Unique Tag'
+    inputs:
+      containerRegistry: 'dockerhub'
+      repository: 'youssefabu/media-network-angular'
+      command: 'buildAndPush'
+      Dockerfile: '**/Dockerfile'
+      tags: |
+        $(imageTag)
+
+  - task: Docker@2
+    displayName: 'Tag and Push Docker Image with Latest Tag'
+    inputs:
+      containerRegistry: 'dockerhub'
+      repository: 'youssefabu/media-network-angular'
+      command: 'buildAndPush'
+      Dockerfile: '**/Dockerfile'
+      tags: |
+        $(latestTag)
+
+
+  - checkout: helmchart-repo # Checkout the specific repository using the alias
+  - script: |
+      echo "Repository cloned successfully."
+      ls -la  # List files to verify the clone
+    displayName: 'Check Directory Files'
+    
+    # Update image tag
+  - script: |
+      sed -i 's/tag:.*/tag: $(Build.BuildId)/' contacts-system-backend/values.yaml
+      cat contacts-system-backend/values.yaml
+    displayName: 'Update Image Tag in values.yaml'
+  
+  - task: HelmDeploy@1
+    displayName: 'Deploy Angular HelmChart'
+    inputs:
+      connectionType: 'Kubernetes Service Connection'
+      kubernetesServiceConnection: 'microk8s-cluster'
+      namespace: 'frontend'
+      command: 'upgrade'
+      chartType: 'FilePath'
+      chartPath: 'contacts-system-helmchart'
+      releaseName: 'angular'
+      valueFile: 'contacts-system-frontend/values.yaml'
+      recreate: true
+
+
+
+  # Rollback Helm Deployment on failure
+  - script: |
+      microk8s helm rollback angular  --namespace backend
+    displayName: 'Rollback Helm Deployment'
+    condition: failed()
+  
+  - script: |
+      echo "Cleaning up old Docker images except for the latest tag..."
+      # List all Docker images with their tags, filter out the 'latest' tag
+      images_to_delete=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -v ':latest')
+      # Remove images that are not tagged as 'latest'
+      for image in $images_to_delete; do
+        echo "Deleting image $image"
+        docker rmi $image || true
+      done
+    displayName: 'Clean Up Old Docker Images Locally'
