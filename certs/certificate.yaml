@@ -1,0 +1,12 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: intouch-cert
+  namespace: default
+spec:
+  dnsNames:
+    - intouch.cloud-stacks.com
+  secretName: intouch-cert500
+  issuerRef:
+    name: letsencrypt-cluster-issuer
+    kind: ClusterIssuer

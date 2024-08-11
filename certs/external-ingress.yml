@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: external-url
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    kubernetes.io/ingress.class: nginx
+spec:
+  tls:
+  - hosts:
+      - "intouch.cloud-stacks.com"
+    secretName: intouch-cert500
+  ingressClassName: nginx
+  rules:
+  - host: "intouch.cloud-stacks.com"
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: internal-nginx-service
+            port:
+              number: 80
