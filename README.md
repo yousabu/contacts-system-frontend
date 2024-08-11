@@ -90,9 +90,16 @@ http {
 Run `docker-compose up -d` to start the backend express service and MongoDB.
 - The backend service will now be available at <Public Server IP>:80, and the frontend can start using it.
 
+![Screenshot from 2024-08-11 15-32-47](https://github.com/user-attachments/assets/38e45222-6cba-47f2-9496-db9fd0a372c0)
+
 Run `docker-compose down` to stop.
 
+![Screenshot from 2024-08-11 15-33-36](https://github.com/user-attachments/assets/ca830af0-1713-443b-a46a-98e1e135e7eb)
+
 ### Azure Pipeline
+
+![Screenshot from 2024-08-11 16-14-04](https://github.com/user-attachments/assets/35debe6c-c05d-4c8b-914e-d3cc999f39b2)
+
 
 ``` azure-pipelines.yml
 Pipeline
@@ -131,6 +138,7 @@ Pipeline
 │      └── Clean Workspace 
    
 ```
+
 
 * HelmChart URL: https://github.com/yousabu/contacts-system-helmchart.git
 * Backend URL  : https://github.com/yousabu/contacts-system-backend.git
