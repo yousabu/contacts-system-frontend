@@ -1,57 +1,29 @@
-# Frontend (Angular)
+
+# APP (Angular) 
+
+This project contains the Angular Application
+
+## Features
+
+- Docker Compose for Angular and Nginx service
+- Dockerfile to create a Docker image for the app
+- Azure Pipeline to build and push the image
+- The pipeline will use a Helm chart template located in another repo, update the values.yaml, and then deploy
 
 
 ## Development server
 
-Run `npm start` for a dev server. It will open `http://localhost:4200/` in your default browser. The app will automatically reload if you change any of the source files.
+Run `npm start` to start the api server in development mode (using nodemon).
 
-Or you can run `npm run dev-server`. It will start frontend and api together. Open  `http://localhost:4200/` to access application.
-
-
-## Build
-
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build. Also, we have enabled SSR (Server side rendering) for fast first loading of UI on production.
-
-## Next Todo
-
-Next development
-
-* [x] Add Bootstrap
-* [x] Add Header and Side Menu, Profile page
-* [x] Implement Login and add Interceptor to attach token in each request
-* [x] Add CRUD example
-* [x] Add A Grid
-* [x] Add Proxy Configuration for local develolpment
-* [x] Server Side Rendering
-* [x] Reusable validation module
-* [x] Core and Shared Module
-* [x] Docker Support
-* [ ] Add Service Worker
-
-## Build with
-
-Describes which version .
-
-| Name       | Version  |
-| ---------- | -------- |
-| bootstrap     | v5.3.2    |
-| @ng-bootstrap | v17.0.0 |
-
-
-### Dockerfile
+### Dockerfile Production
 
 ```dockerfile
-# Create image based off of the official Node 10 image
 FROM node:21-alpine as builder
 
 # Copy dependency definitions
 COPY package.json package-lock.json ./
 
-RUN npm install -g npm@9.1.2
-
-## installing and Storing node modules on a separate layer will prevent unnecessary npm installs at each build
-## --legacy-peer-deps as ngx-bootstrap still depends on Angular 14
-RUN npm i --legacy-peer-deps && mkdir /app && mv ./node_modules ./app
+RUN npm i && mkdir /app && mv ./node_modules ./app
 
 # Change directory so that our commands run inside this new directory
 WORKDIR /app
@@ -60,7 +32,7 @@ WORKDIR /app
 COPY . /app/
 
 # Build server side bundles
-RUN npm run build:ssr
+RUN npm run build
 
 FROM node:21-alpine
 ## From 'builder' copy published folder
@@ -72,5 +44,94 @@ EXPOSE 4000
 
 USER node
 
-CMD ["node", "dist/frontend/server/main.js"]
+CMD ["node", "dist/contacts/server/server.mjs"]
+
+```
+## Nginx
+- We use Nginx to Manage Connection Between Frontend And Backend.
+```nginx.conf
+  events {
+    worker_connections 1024;
+  }
+http {
+  upstream frontend {
+    # These are references to our backend containers, facilitated by
+    # Compose, as defined in docker-compose.yml
+    server contacts_angular:4000;
+  } 
+  upstream backend {
+    # These are references to our backend containers, facilitated by
+    # Compose, as defined in docker-compose.yml
+    server contacts_express:3000;
+  }
+  
+
+ server {
+    listen 80;
+    server_name frontend;
+    server_name backend;
+
+    location / {
+       resolver 127.0.0.11 valid=30s;
+       proxy_pass http://frontend;
+       proxy_set_header Host $host;
+    }
+    location /api {
+      resolver 127.0.0.11 valid=30s;
+       proxy_pass http://backend;
+       proxy_set_header Host $host;
+    }
+  }
+}
+
+```
+## Run Docker Compose
+
+Run `docker-compose up -d` to start the backend express service and MongoDB.
+- The backend service will now be available at <Public Server IP>:80, and the frontend can start using it.
+
+Run `docker-compose down` to stop.
+
+### Azure Pipeline
+
+``` azure-pipelines.yml
+Pipeline
+│
+├── Trigger: Branches include 'main'
+│
+├── Pool: yarb
+│
+├── Resources
+│   └── Repositories
+│       └── helmchart-repo (GitHub)
+│
+├── Steps
+│   │
+│   ├── Check Helm Installation
+│   │
+│   ├── Set Image Tags
+│   │
+│   ├── Build and Push Docker Image with Unique Tag
+│   │
+│   ├── Tag and Push Docker Image with Latest Tag
+│   │
+│   ├── Checkout helmchart-repo
+│   │
+│   ├── Check Directory Files
+│   │
+│   ├── Update Image Tag in values.yaml
+│   │
+│   ├── Deploy Express HelmChart
+│   │
+│   ├── Rollback Helm Deployment (on deployment failure)
+│   │
+│   ├── Clean Up Old Docker Images Locally
+│   │
+│   ├── Clean WORKDIR
+│      └── Clean Workspace 
+   
+```
+
+* HelmChart URL: https://github.com/yousabu/contacts-system-helmchart.git
+* Backend URL  : https://github.com/yousabu/contacts-system-backend.git
 
