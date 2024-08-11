@@ -143,3 +143,4 @@ Pipeline
 * HelmChart URL: https://github.com/yousabu/contacts-system-helmchart.git
 * Backend URL  : https://github.com/yousabu/contacts-system-backend.git
 
+## Now Let's Move to Helm Repo "https://github.com/yousabu/contacts-system-helmchart.git" ##
